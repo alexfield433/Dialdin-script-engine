@@ -594,7 +594,28 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const SHARED_SCRIPTS = [
-  // { name: "Script Name", scriptData: { ... } },
+  {
+    "name": "dialdin script",
+    "scriptData": {
+      "stageOrder": ["opener","pitch","challenge","engagement","qualification","close"],
+      "opener": ["Hi there [Name], As I said, its YOUR NAME calling from dial'd in  look I'll be upfront, it is a sales call, so I'm not sure if that makes you want to immediately slam the phone back down or let me have 30 seconds it's completely up to you"],
+      "pitch": ["So we typically speak with INSERT JOB TITLE that find they are a bit frustrated on the new business side of things so theres perhaps a feeling theres not enough meetings in the diaries with potential new customers and as a result the pipeline is looking a bit bleak or maybe thats not the issue but they arent meeting the right types of people and are trapped in these never ending deal cycles that don't go anywhere","We work with [insert business] businesses to build outbound pipelines — so cold calling like I'm doing with you right now and basically getting their business in front of those dream clients you've always wanted to work with but struggled to get your foot in the door. Can I ask — how are you generating new business opportunities at the moment?"],
+      "challengeQuestions": ["PEEMEESS\nProblem- which problem is most relevant? \nExample - give me an example of what that looks like in your world?// what does that look like for you guys exactly, could you maybe paint me a picture a bit?\nEffect - is this really a problem though or more a minor issue? \nMotivation - what have you done already to solve this?\nExpectations - do you believe it can be solved?\nEmotion - how does it feel? That sounds pretty frustrating\nSolution - would you ever consider using a solution like ours? \nWould there be any reason you wouldn't consider using an agency?\nSummarise - sounds like abc xyz  just to summarise it back to you to make sure i havent missed anything \u2026 is that about right? \nSounds like it could be a fit then, we've helped lots of companies like yours with challenges around {insert their challenge} - I can't say right now that for sure we are going to be the perfect fit but it seems like we could\u2026\nWould there be any reason you wouldn't want to sit down and have a conversation about this?\n"],
+      "qualification": ["Is your Annual contract value at least \u00a310k ARR?","Selling into Europe and UK markets?","If the ROI made sense would a \u00a35k a month investment scare you off?","How many companies are in your total market that you could sell to?"],
+      "engagementResponse": [""],
+      "closeForMeeting": [""],
+      "objections": [
+        {"label": "We're all set/ already use a competitor","response": ["On a scale of 1-10, how would you rate how it's been going so far? What would make it a 10? ","Sounds like everything is perfect?","Have you closed your mind to the idea that things could be done better? ","What made you choose to use x solution  in the first place? Have they solved the problem completely? -> PEEMEES if not completely solved","Get them to focus on the problem they also mentioned or interest rather than objection (if applicable) \"sounds like you're all set but when you say INSERT PAIN/ INTERESTE MENTIONED what do you mean exactly?\"\n"]},
+        {"label": "Not the right time/ in contract/ just signed up with someone","response": ["When would it make sense to look at something like this? ","Is it because you already have a competitor in place or it is interesting just theres other things you need to address first?","Is this the only reason you wouldn't consider something like this at the moment or is it also something else like you already have a solution or not really experiencing a problem in this area?"]},
+        {"label": "No budget","response": ["Makes sense but we're not looking to have a commercial conversation at the moment just more seeing if there is a fit and if there is then I'm sure we can have a look at a sensible way to make the commercials work down the line, is this the only thing holding you back at the moment?","When would you have budget for something like this? (work back from that to when you should have the first conversation)"]},
+        {"label": "Not the right person","response": ["So you would never be involved in this if it went to being signed off?","Fair enough, so none of x,y or z topics fall under your remit?","Who would be the right person for something like this?"]},
+        {"label": "Too much effort to change","response": ["Is it really the effort to make a change or is it more uncertainty that the change would pay off?","What would need to happen for this to feel worth addressing?","That's fair. I guess the real question is, what does it cost you to leave it as it is?"]},
+        {"label": "We had a bad experience in the past","response": ["What happened exactly? Why didn't it work? Do you think there's no possible way someone else could do it better/ not make those mistakes?","Have you closed your mind to the idea that there could be a better partner that could solve the issue for you?"]},
+        {"label": "Not a priority","response": ["When you say \u201cnot a priority\u201d does that mean it will never be a priority or just not right now?","Is that because you already have a competitor or you just don't experience the problem/ no need?"]}
+      ],
+      "voicemail": ""
+    }
+  }
 ];
 
 const DEFAULT_ORDER = ['opener','pitch','challenge','qualification','engagement','close'];
