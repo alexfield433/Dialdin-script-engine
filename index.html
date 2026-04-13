@@ -1,0 +1,1494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dial'd In — Script Engine</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #1a1528;
+      --bg-card:  #2a1f3d;
+      --bg-modal: #211838;
+      --accent:   #9b59b6;
+      --accent-h: #b97fd4;
+      --text:     #ffffff;
+      --muted:    #a89bc2;
+      --border:   rgba(155, 89, 182, 0.3);
+      --divider:  rgba(155, 89, 182, 0.12);
+      --t:        200ms ease;
+    }
+
+    html, body {
+      height: 100%; overflow: hidden;
+      background: var(--bg); color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── SCREENS ───────────────────────────────────────────────────────────── */
+
+    .screen {
+      position: absolute; inset: 0;
+      opacity: 0; pointer-events: none;
+      transition: opacity 280ms ease;
+    }
+    .screen.active { opacity: 1; pointer-events: all; }
+
+    /* ─── UPLOAD ────────────────────────────────────────────────────────────── */
+
+    #scr-upload { display: flex; align-items: center; justify-content: center; padding: 24px; }
+
+    .upload-card { width: 100%; max-width: 456px; display: flex; flex-direction: column; gap: 22px; }
+
+    .upload-heading { text-align: center; }
+    .upload-heading h1 { font-size: 46px; font-weight: 700; letter-spacing: -0.5px; line-height: 1.05; }
+    .upload-heading p  { margin-top: 8px; font-size: 16px; color: var(--muted); }
+
+    .drop-zone {
+      position: relative; border: 2px dashed var(--accent); border-radius: 12px;
+      padding: 38px 24px; text-align: center; cursor: pointer;
+      transition: background var(--t), border-color var(--t);
+    }
+    .drop-zone:hover, .drop-zone.over { background: rgba(155,89,182,0.1); border-color: var(--accent-h); }
+    .drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .drop-icon   { font-size: 26px; margin-bottom: 10px; display: block; }
+    .drop-label  { font-size: 14px; color: var(--text); line-height: 1.55; }
+    .drop-filename { margin-top: 10px; font-size: 12px; color: var(--accent-h); font-weight: 500; }
+
+    .field { display: flex; flex-direction: column; gap: 7px; }
+    .field label { font-size: 12px; color: var(--muted); font-weight: 500; letter-spacing: 0.2px; }
+    .field input {
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 14px;
+      color: var(--text); font-size: 14px; font-family: inherit; outline: none;
+      transition: border-color var(--t);
+    }
+    .field input:focus { border-color: var(--accent); }
+    .field input::placeholder { color: rgba(168,155,194,0.38); }
+
+    .upload-btn {
+      background: var(--accent); color: #fff;
+      font-size: 15px; font-weight: 700; font-family: inherit;
+      border: none; border-radius: 8px; padding: 15px 24px; width: 100%;
+      cursor: pointer; letter-spacing: 0.2px;
+      transition: background var(--t), opacity var(--t);
+    }
+    .upload-btn:hover:not(:disabled) { background: var(--accent-h); }
+    .upload-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .scratch-link { text-align: center; font-size: 13px; color: var(--muted); }
+    .scratch-link button {
+      background: none; border: none; color: var(--accent);
+      font-size: 13px; font-family: inherit; cursor: pointer;
+      text-decoration: underline; text-underline-offset: 2px; padding: 0;
+      transition: color var(--t);
+    }
+    .scratch-link button:hover { color: var(--accent-h); }
+
+    /* ─── LOADING ───────────────────────────────────────────────────────────── */
+
+    #scr-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px; }
+    .loading-brand h1 { font-size: 38px; font-weight: 700; letter-spacing: -0.4px; text-align: center; }
+    .loading-brand p  { margin-top: 7px; font-size: 15px; color: var(--muted); text-align: center; }
+    .shimmer-bar { width: 200px; height: 3px; border-radius: 2px; background: rgba(155,89,182,0.18); overflow: hidden; position: relative; }
+    .shimmer-bar::after {
+      content: ''; position: absolute; top: 0; left: -65%; width: 65%; height: 100%;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      animation: shimmer 1.35s ease-in-out infinite;
+    }
+    @keyframes shimmer { from { left: -65%; } to { left: 120%; } }
+    .loading-label { font-size: 14px; color: var(--muted); letter-spacing: 0.3px; }
+
+    /* ─── ERROR ─────────────────────────────────────────────────────────────── */
+
+    #scr-error { display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .error-card {
+      max-width: 420px; width: 100%; background: var(--bg-card);
+      border: 1px solid rgba(180,60,60,0.38); border-radius: 14px;
+      padding: 34px 30px; text-align: center; display: flex; flex-direction: column; gap: 14px;
+    }
+    .error-icon  { font-size: 30px; }
+    .error-title { font-size: 18px; font-weight: 700; }
+    .error-detail { font-size: 13px; color: var(--muted); line-height: 1.65; word-break: break-word; }
+    .retry-btn {
+      align-self: center; margin-top: 4px; background: var(--accent); color: #fff;
+      font-size: 14px; font-weight: 700; font-family: inherit;
+      border: none; border-radius: 8px; padding: 11px 26px; cursor: pointer;
+      transition: background var(--t);
+    }
+    .retry-btn:hover { background: var(--accent-h); }
+
+    /* ─── APP ───────────────────────────────────────────────────────────────── */
+
+    #scr-app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    .topbar {
+      flex-shrink: 0; height: 48px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 20px; border-bottom: 1px solid var(--divider);
+    }
+    .topbar-brand { font-size: 17px; font-weight: 700; letter-spacing: -0.2px; }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .topbar-file  { font-size: 11px; color: var(--muted); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .edit-toggle {
+      font-size: 12px; font-weight: 600; font-family: inherit;
+      border: 1px solid var(--border); border-radius: 6px; padding: 5px 13px;
+      cursor: pointer; background: transparent; color: var(--muted); white-space: nowrap;
+      transition: background var(--t), color var(--t), border-color var(--t);
+    }
+    .edit-toggle:hover:not(.on) { color: var(--text); border-color: rgba(155,89,182,0.55); }
+    .edit-toggle.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    .reset-link {
+      font-size: 12px; color: var(--muted); background: none; border: none;
+      font-family: inherit; cursor: pointer; padding: 0;
+      text-decoration: underline; text-underline-offset: 2px;
+      transition: color var(--t); white-space: nowrap;
+    }
+    .reset-link:hover { color: var(--text); }
+
+    .app-main { flex: 1; display: flex; overflow: hidden; }
+
+    .left {
+      flex: 1; display: flex; flex-direction: column;
+      overflow: hidden; border-right: 1px solid var(--divider); min-width: 0;
+    }
+
+    /* ─── STAGE BAR ─────────────────────────────────────────────────────────── */
+
+    .stage-bar {
+      flex-shrink: 0; height: 50px;
+      display: flex; align-items: center; gap: 2px;
+      padding: 0 16px; border-bottom: 1px solid var(--divider);
+      overflow-x: auto; scrollbar-width: none;
+    }
+    .stage-bar::-webkit-scrollbar { display: none; }
+
+    .stage-btn {
+      flex-shrink: 0; padding: 7px 14px; border-radius: 6px;
+      border: none; background: transparent; color: var(--muted);
+      font-size: 13px; font-weight: 600; font-family: inherit;
+      cursor: pointer; white-space: nowrap; user-select: none;
+      transition: background var(--t), color var(--t), opacity var(--t);
+    }
+    .stage-btn:hover:not(.active) { color: var(--text); background: rgba(155,89,182,0.15); }
+    .stage-btn.active { background: var(--accent); color: #fff; }
+
+    /* edit mode: show drag handle prefix, hide separators */
+    .edit-mode .stage-sep { display: none; }
+    .edit-mode .stage-btn { cursor: grab; padding-left: 10px; }
+    .edit-mode .stage-btn::before { content: '⠿ '; font-size: 11px; opacity: 0.45; font-weight: 400; }
+    .edit-mode .stage-btn:active { cursor: grabbing; }
+
+    .stage-sep { color: var(--muted); font-size: 13px; opacity: 0.32; flex-shrink: 0; padding: 0 2px; user-select: none; }
+
+    /* ─── CONTENT ───────────────────────────────────────────────────────────── */
+
+    .content { flex: 1; overflow-y: auto; padding: 28px 28px 100px; }
+    .content-inner { animation: fadeUp 200ms ease both; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .eyebrow {
+      font-size: 10.5px; font-weight: 700; letter-spacing: 1.4px;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 14px;
+    }
+
+    /* cards (view mode — all stages) */
+    .card-list { display: flex; flex-direction: column; gap: 10px; }
+    .script-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 16px 20px; cursor: pointer; user-select: none;
+      font-size: 15px; line-height: 1.65; color: var(--muted); white-space: pre-wrap;
+      transition: background var(--t), border-color var(--t), color var(--t);
+    }
+    .script-card:hover  { border-color: rgba(155,89,182,0.6); color: var(--text); }
+    .script-card.active { background: rgba(155,89,182,0.14); border-color: var(--accent); color: var(--text); }
+
+    .empty-hint { font-size: 14px; color: var(--muted); font-style: italic; opacity: 0.7; }
+
+    /* back button */
+    .back-btn {
+      display: inline-flex; align-items: center;
+      background: none; border: none; color: var(--accent);
+      font-size: 13px; font-weight: 600; font-family: inherit;
+      cursor: pointer; padding: 0; margin-bottom: 22px;
+      transition: color var(--t);
+    }
+    .back-btn:hover { color: var(--accent-h); }
+
+    /* ─── EDIT MODE — CONTENT ───────────────────────────────────────────────── */
+
+    .edit-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .edit-item-row {
+      display: flex; align-items: flex-start; gap: 8px;
+      border-radius: 8px;
+      transition: outline var(--t);
+    }
+    .edit-item-row.drag-over { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .edit-item-row.dragging  { opacity: 0.35; }
+
+    .drag-handle {
+      flex-shrink: 0; margin-top: 11px;
+      font-size: 15px; color: var(--muted); opacity: 0.5;
+      cursor: grab; user-select: none; line-height: 1;
+      padding: 2px 1px;
+    }
+    .drag-handle:active { cursor: grabbing; }
+
+    .edit-item-ta {
+      flex: 1; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 14px;
+      color: var(--text); font-size: 15px; line-height: 1.65;
+      font-family: inherit; resize: none; min-height: 52px; outline: none;
+      overflow: hidden; white-space: pre-wrap;
+      transition: border-color var(--t);
+    }
+    .edit-item-ta:focus { border-color: var(--accent); }
+    .edit-item-ta::placeholder { color: rgba(168,155,194,0.35); }
+
+    .del-btn {
+      flex-shrink: 0; margin-top: 9px; width: 30px; height: 30px;
+      background: none; border: 1px solid rgba(180,60,60,0.32); border-radius: 6px;
+      color: #c05555; font-size: 18px; line-height: 1; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background var(--t), border-color var(--t);
+    }
+    .del-btn:hover { background: rgba(180,60,60,0.14); border-color: rgba(180,60,60,0.65); }
+
+    .add-row-btn {
+      background: rgba(155,89,182,0.07); border: 1px dashed rgba(155,89,182,0.4);
+      border-radius: 8px; padding: 10px 14px;
+      color: var(--accent); font-size: 13px; font-weight: 600; font-family: inherit;
+      cursor: pointer; width: 100%; text-align: center; margin-top: 2px;
+      transition: background var(--t), border-color var(--t);
+    }
+    .add-row-btn:hover { background: rgba(155,89,182,0.15); border-color: var(--accent); }
+
+    /* objection edit form in main content */
+    .obj-edit-hint   { font-size: 11px; color: var(--muted); font-weight: 500; margin-bottom: 5px; letter-spacing: 0.2px; }
+    .obj-edit-input  {
+      width: 100%; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 11px 14px;
+      color: var(--text); font-size: 14px; font-weight: 600; font-family: inherit;
+      outline: none; margin-bottom: 18px;
+      transition: border-color var(--t);
+    }
+    .obj-edit-input:focus { border-color: var(--accent); }
+
+    .obj-delete-btn {
+      margin-top: 18px; background: none;
+      border: 1px solid rgba(180,60,60,0.35); border-radius: 8px;
+      padding: 10px 18px; color: #c05555;
+      font-size: 13px; font-weight: 600; font-family: inherit;
+      cursor: pointer; transition: background var(--t), border-color var(--t);
+    }
+    .obj-delete-btn:hover { background: rgba(180,60,60,0.12); border-color: rgba(180,60,60,0.65); }
+
+    /* ─── RIGHT PANEL ───────────────────────────────────────────────────────── */
+
+    .right {
+      width: 30%; max-width: 300px; min-width: 210px; flex-shrink: 0;
+      display: flex; flex-direction: column; overflow-y: auto;
+      padding: 20px 14px; gap: 9px;
+    }
+    .panel-eyebrow {
+      flex-shrink: 0; font-size: 10.5px; font-weight: 700; letter-spacing: 1.4px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 2px;
+    }
+
+    .obj-btn {
+      width: 100%; background: var(--bg-card); border: 1px solid var(--accent);
+      border-radius: 8px; padding: 11px 13px;
+      color: var(--text); font-size: 13px; font-weight: 500; font-family: inherit;
+      text-align: left; cursor: pointer; flex-shrink: 0;
+      display: flex; align-items: center; gap: 8px;
+      transition: background var(--t), border-color var(--t), opacity var(--t);
+    }
+    .obj-btn:hover, .obj-btn.active { background: rgba(155,89,182,0.18); border-color: var(--accent-h); }
+    .obj-btn.drag-over { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .obj-btn.dragging  { opacity: 0.35; }
+
+    .obj-btn .drag-handle { margin-top: 0; font-size: 14px; display: none; }
+    .edit-mode .obj-btn .drag-handle { display: block; }
+
+    .obj-btn-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .obj-btn-edit-icon { flex-shrink: 0; font-size: 11px; color: var(--muted); display: none; }
+    .edit-mode .obj-btn-edit-icon { display: block; }
+
+    .add-obj-btn {
+      background: rgba(155,89,182,0.07); border: 1px dashed rgba(155,89,182,0.4);
+      border-radius: 8px; padding: 10px 14px;
+      color: var(--accent); font-size: 13px; font-weight: 600; font-family: inherit;
+      cursor: pointer; width: 100%; text-align: center; flex-shrink: 0;
+      display: none;
+      transition: background var(--t), border-color var(--t);
+    }
+    .edit-mode .add-obj-btn { display: block; }
+    .add-obj-btn:hover { background: rgba(155,89,182,0.15); border-color: var(--accent); }
+
+    /* ─── VOICEMAIL BUTTON ──────────────────────────────────────────────────── */
+
+    .vm-btn {
+      position: fixed; bottom: 20px; left: 20px; z-index: 40;
+      background: var(--accent); color: #fff;
+      font-size: 13px; font-weight: 700; font-family: inherit;
+      border: none; border-radius: 8px; padding: 10px 18px;
+      cursor: pointer; display: none; align-items: center; gap: 7px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4); transition: background var(--t);
+    }
+    .vm-btn:hover { background: var(--accent-h); }
+
+    /* ─── MODAL ─────────────────────────────────────────────────────────────── */
+
+    .modal-wrap {
+      position: fixed; inset: 0; z-index: 90;
+      display: flex; align-items: center; justify-content: center; padding: 24px;
+      background: rgba(8,4,18,0.72); backdrop-filter: blur(6px);
+      opacity: 0; pointer-events: none; transition: opacity var(--t);
+    }
+    .modal-wrap.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--bg-modal); border: 1px solid var(--border);
+      border-radius: 14px; padding: 28px 30px 32px;
+      max-width: 520px; width: 100%;
+      transform: translateY(14px); transition: transform var(--t);
+    }
+    .modal-wrap.open .modal { transform: translateY(0); }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .modal-title { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .modal-x { background: none; border: none; color: var(--muted); font-size: 24px; line-height: 1; cursor: pointer; padding: 0; transition: color var(--t); }
+    .modal-x:hover { color: var(--text); }
+    .modal-body { font-size: 15px; line-height: 1.75; color: var(--text); white-space: pre-wrap; }
+
+    .vm-edit-ta {
+      width: 100%; min-height: 140px;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(155,89,182,0.4);
+      border-radius: 8px; padding: 14px 16px;
+      color: var(--text); font-size: 15px; line-height: 1.75;
+      font-family: inherit; resize: none; outline: none; overflow: hidden;
+      transition: border-color var(--t);
+    }
+    .vm-edit-ta:focus { border-color: var(--accent); }
+    .vm-edit-ta::placeholder { color: rgba(168,155,194,0.35); }
+
+    /* ─── MOBILE DRAWER ─────────────────────────────────────────────────────── */
+
+    .obj-toggle {
+      display: none; position: fixed; bottom: 20px; right: 20px; z-index: 40;
+      background: var(--accent); color: #fff;
+      font-size: 13px; font-weight: 700; font-family: inherit;
+      border: none; border-radius: 8px; padding: 10px 16px;
+      cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.4); transition: background var(--t);
+    }
+    .obj-toggle:hover { background: var(--accent-h); }
+
+    .drawer-scrim { display: none; position: fixed; inset: 0; z-index: 50; background: rgba(8,4,18,0.55); opacity: 0; transition: opacity var(--t); pointer-events: none; }
+    .drawer {
+      display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 60;
+      background: #1e1432; border-top: 1px solid var(--border);
+      border-radius: 16px 16px 0 0; padding: 14px 20px 36px;
+      transform: translateY(100%); transition: transform 280ms ease;
+      max-height: 65vh; overflow-y: auto;
+    }
+    .drawer-handle { width: 36px; height: 4px; background: rgba(255,255,255,0.18); border-radius: 2px; margin: 0 auto 16px; }
+    .drawer-grid { display: flex; flex-direction: column; gap: 9px; }
+
+    /* ─── SCROLLBAR ─────────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(155,89,182,0.28); border-radius: 3px; }
+
+    /* ─── SAVE / EXPORT BUTTONS ─────────────────────────────────────────────── */
+
+    .save-btn, .export-btn {
+      font-size: 12px; font-weight: 600; font-family: inherit;
+      border: 1px solid rgba(155,89,182,0.4); border-radius: 6px; padding: 5px 13px;
+      cursor: pointer; background: transparent; color: var(--muted); white-space: nowrap;
+      transition: background var(--t), color var(--t), border-color var(--t);
+    }
+    .save-btn:hover, .export-btn:hover { color: var(--text); border-color: var(--accent); }
+    .save-btn.ok, .export-btn.ok       { color: #72c27a; border-color: #72c27a; }
+
+    /* ─── SHARED BADGE ───────────────────────────────────────────────────────── */
+
+    .saved-entry-badge.shared { color: #4a9eff; background: rgba(74,158,255,0.14); }
+
+    /* ─── SAVED SCRIPTS (upload screen) ─────────────────────────────────────── */
+
+    .saved-section { display: flex; flex-direction: column; gap: 10px; }
+
+    .saved-divider {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 11px; color: var(--muted); letter-spacing: 0.3px;
+    }
+    .saved-divider::before,
+    .saved-divider::after { content: ''; flex: 1; height: 1px; background: var(--divider); }
+
+    .saved-list { display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; }
+
+    .saved-entry {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 11px 14px; cursor: pointer;
+      transition: background var(--t), border-color var(--t);
+    }
+    .saved-entry:hover { background: rgba(155,89,182,0.1); border-color: var(--accent); }
+
+    .saved-entry-badge {
+      flex-shrink: 0; font-size: 10px; font-weight: 700; letter-spacing: 0.8px;
+      color: var(--accent); text-transform: uppercase;
+      background: rgba(155,89,182,0.14); border-radius: 4px; padding: 2px 6px;
+    }
+
+    .saved-entry-info { flex: 1; min-width: 0; }
+    .saved-entry-name { font-size: 13px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .saved-entry-meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+    .saved-entry-del {
+      flex-shrink: 0; background: none; border: none; color: rgba(168,155,194,0.45);
+      font-size: 18px; line-height: 1; cursor: pointer; padding: 2px 5px; border-radius: 4px;
+      transition: color var(--t), background var(--t);
+    }
+    .saved-entry-del:hover { color: #c05555; background: rgba(180,60,60,0.1); }
+
+    /* ─── RESPONSIVE ────────────────────────────────────────────────────────── */
+    @media (max-width: 640px) {
+      .right        { display: none; }
+      .left         { border-right: none; }
+      .obj-toggle   { display: block; }
+      .drawer-scrim { display: block; }
+      .drawer       { display: block; }
+      .content      { padding: 22px 18px 110px; }
+      .topbar-file  { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── UPLOAD ───────────────────────────────────────────────────────────────── -->
+<div id="scr-upload" class="screen active">
+  <div class="upload-card">
+    <div class="upload-heading"><h1>Dial'd In</h1><p>Script Engine</p></div>
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".docx" />
+      <span class="drop-icon">📄</span>
+      <div class="drop-label">Drop your .docx script here<br>or click to upload</div>
+      <div class="drop-filename" id="dropFilename"></div>
+    </div>
+    <div class="field">
+      <label for="apiKeyInput">Anthropic API Key</label>
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-..." autocomplete="off" spellcheck="false" />
+    </div>
+    <button class="upload-btn" id="uploadBtn">Load Script</button>
+    <div class="scratch-link">No document? <button id="scratchBtn">Start with a blank script →</button></div>
+
+    <!-- Shared scripts — populated from SHARED_SCRIPTS constant in JS -->
+    <div id="sharedSection" class="saved-section" style="display:none">
+      <div class="saved-divider">shared scripts</div>
+      <div class="saved-list" id="sharedList"></div>
+    </div>
+
+    <!-- Saved scripts — rendered by renderSavedScripts() -->
+    <div id="savedSection" class="saved-section" style="display:none">
+      <div class="saved-divider">your saves</div>
+      <div class="saved-list" id="savedList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── LOADING ──────────────────────────────────────────────────────────────── -->
+<div id="scr-loading" class="screen">
+  <div class="loading-brand"><h1>Dial'd In</h1><p>Script Engine</p></div>
+  <div class="shimmer-bar"></div>
+  <div class="loading-label">Parsing your script...</div>
+</div>
+
+<!-- ─── ERROR ────────────────────────────────────────────────────────────────── -->
+<div id="scr-error" class="screen">
+  <div class="error-card">
+    <div class="error-icon">⚠️</div>
+    <div class="error-title">Something went wrong</div>
+    <div class="error-detail" id="errorDetail"></div>
+    <button class="retry-btn" id="retryBtn">← Try again</button>
+  </div>
+</div>
+
+<!-- ─── APP ──────────────────────────────────────────────────────────────────── -->
+<div id="scr-app" class="screen">
+  <div class="topbar">
+    <span class="topbar-brand">Dial'd In</span>
+    <div class="topbar-right">
+      <span class="topbar-file" id="appFilename"></span>
+      <button class="save-btn"    id="saveBtn">Save</button>
+      <button class="export-btn"  id="exportBtn">Export</button>
+      <button class="edit-toggle" id="editToggle">Edit</button>
+      <button class="reset-link"  id="resetBtn">Load different script</button>
+    </div>
+  </div>
+  <div class="app-main">
+    <div class="left">
+      <div class="stage-bar" id="stageBar"></div>
+      <div class="content" id="contentScroll">
+        <div class="content-inner" id="contentInner"></div>
+      </div>
+    </div>
+    <div class="right" id="rightPanel">
+      <div class="panel-eyebrow">Objections</div>
+      <button class="add-obj-btn" id="addObjBtn">+ Add Objection</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── FIXED OVERLAYS ───────────────────────────────────────────────────────── -->
+
+<button class="vm-btn" id="vmBtn">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M22 16.92V19a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2 3.18 2 2 0 0 1 3.92 1H7.5a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+  </svg>
+  Voicemail
+</button>
+
+<button class="obj-toggle" id="objToggle">Objections ↑</button>
+
+<div class="drawer-scrim" id="drawerScrim"></div>
+<div class="drawer" id="objDrawer">
+  <div class="drawer-handle"></div>
+  <div class="panel-eyebrow" style="margin-bottom:12px">Objections</div>
+  <div class="drawer-grid" id="drawerGrid"></div>
+</div>
+
+<div class="modal-wrap" id="vmModal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 16.92V19a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2 3.18 2 2 0 0 1 3.92 1H7.5a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+        </svg>
+        Voicemail Script
+      </span>
+      <button class="modal-x" id="vmModalX">×</button>
+    </div>
+    <div id="vmModalContent"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════════
+// SCHEMA
+// All content fields are arrays — every section supports multiple blocks.
+// stageOrder controls the sequence of tabs.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SHARED SCRIPTS
+// Add exported script entries here — they appear for everyone who visits the URL.
+// To add one: load a script in the app, click Export, copy the JSON, paste below.
+// Push to GitHub → Netlify redeploys → everyone sees the update within ~1 minute.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const SHARED_SCRIPTS = [
+  // { name: "Script Name", scriptData: { ... } },
+];
+
+const DEFAULT_ORDER = ['opener','pitch','challenge','qualification','engagement','close'];
+
+const STAGE_META = {
+  opener:        { label: 'Opener'         },
+  pitch:         { label: 'Pitch'          },
+  challenge:     { label: 'Challenge'      },
+  qualification: { label: 'Qualification'  },
+  engagement:    { label: 'Engagement'     },
+  close:         { label: 'Close'          },
+};
+
+// Maps stage key → scriptData array key
+const DATA_KEY = {
+  opener:        'opener',
+  pitch:         'pitch',
+  challenge:     'challengeQuestions',
+  qualification: 'qualification',
+  engagement:    'engagementResponse',
+  close:         'closeForMeeting',
+};
+
+function blankScript() {
+  return {
+    stageOrder:         [...DEFAULT_ORDER],
+    opener:             [''],
+    pitch:              [''],
+    challengeQuestions: [''],
+    qualification:      [''],
+    engagementResponse: [''],
+    closeForMeeting:    [''],
+    objections:         [{ label: '', response: [''] }],
+    voicemail:          '',
+  };
+}
+
+// Convert any value to a non-empty array of strings
+function toArr(v) {
+  if (Array.isArray(v)) return v.length ? v : [];
+  const s = v != null ? String(v).trim() : '';
+  return s ? [s] : [];
+}
+
+function ensureDefaults(d) {
+  return {
+    stageOrder:         Array.isArray(d.stageOrder) ? d.stageOrder : [...DEFAULT_ORDER],
+    opener:             toArr(d.opener),
+    pitch:              toArr(d.pitch),
+    challengeQuestions: toArr(d.challengeQuestions),
+    qualification:      toArr(d.qualification),
+    engagementResponse: toArr(d.engagementResponse),
+    closeForMeeting:    toArr(d.closeForMeeting),
+    objections:         Array.isArray(d.objections)
+                          ? d.objections.map(o => ({ label: o.label || '', response: toArr(o.response) }))
+                          : [],
+    voicemail:          d.voicemail ?? null,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+let selectedFile = null;
+let scriptData   = null;
+
+let uiStage    = 'opener';
+let uiViewMode = 'stage';    // 'stage' | 'objection'
+let uiCard     = null;       // index of highlighted card in current stage
+let uiObj      = null;       // index of active objection
+let drawerOpen = false;
+let editMode   = false;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ELEMENT REFS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const elApp          = document.getElementById('scr-app');
+const dropZone       = document.getElementById('dropZone');
+const fileInput      = document.getElementById('fileInput');
+const dropFilename   = document.getElementById('dropFilename');
+const apiKeyInput    = document.getElementById('apiKeyInput');
+const uploadBtn      = document.getElementById('uploadBtn');
+const scratchBtn     = document.getElementById('scratchBtn');
+const errorDetail    = document.getElementById('errorDetail');
+const retryBtn       = document.getElementById('retryBtn');
+const appFilename    = document.getElementById('appFilename');
+const editToggle     = document.getElementById('editToggle');
+const resetBtn       = document.getElementById('resetBtn');
+const stageBar       = document.getElementById('stageBar');
+const contentScroll  = document.getElementById('contentScroll');
+const rightPanel     = document.getElementById('rightPanel');
+const addObjBtn      = document.getElementById('addObjBtn');
+const vmBtn          = document.getElementById('vmBtn');
+const vmModal        = document.getElementById('vmModal');
+const vmModalX       = document.getElementById('vmModalX');
+const vmModalContent = document.getElementById('vmModalContent');
+const objToggle      = document.getElementById('objToggle');
+const drawerScrim    = document.getElementById('drawerScrim');
+const objDrawer      = document.getElementById('objDrawer');
+const drawerGrid     = document.getElementById('drawerGrid');
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SCREEN MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const SCREENS = {
+  upload:  document.getElementById('scr-upload'),
+  loading: document.getElementById('scr-loading'),
+  error:   document.getElementById('scr-error'),
+  app:     elApp,
+};
+
+function showScreen(name) {
+  Object.entries(SCREENS).forEach(([k, el]) => el.classList.toggle('active', k === name));
+  const inApp = name === 'app';
+  vmBtn.style.display     = inApp && (scriptData?.voicemail || editMode) ? 'flex' : 'none';
+  objToggle.style.display = inApp ? '' : 'none';
+  if (name === 'upload') { renderSharedScripts(); renderSavedScripts(); }
+}
+
+function updateVmBtn() {
+  const inApp = elApp.classList.contains('active');
+  vmBtn.style.display = inApp && (scriptData?.voicemail || editMode) ? 'flex' : 'none';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SESSION STORAGE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const SK = 'dialdin_api_key';
+try { const s = sessionStorage.getItem(SK); if (s) apiKeyInput.value = s; } catch(_) {}
+function saveKey(k) { try { sessionStorage.setItem(SK, k); } catch(_) {} }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PERSISTENCE — localStorage
+// Auto-save on every render. Named saves in a library. Both survive refresh.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const LS_AUTO = 'dialdin_autosave';
+const LS_LIB  = 'dialdin_library';
+
+function getLibrary() {
+  try { return JSON.parse(localStorage.getItem(LS_LIB) || '[]'); } catch { return []; }
+}
+
+function getAutosave() {
+  try { return JSON.parse(localStorage.getItem(LS_AUTO)); } catch { return null; }
+}
+
+function autoSave() {
+  if (!scriptData) return;
+  try {
+    localStorage.setItem(LS_AUTO, JSON.stringify({
+      name: appFilename.textContent || 'Untitled',
+      scriptData,
+      savedAt: Date.now(),
+    }));
+  } catch(_) {}
+}
+
+const saveBtn = document.getElementById('saveBtn');
+
+saveBtn.addEventListener('click', () => {
+  const current = appFilename.textContent || 'Untitled';
+  const name = prompt('Save script as:', current);
+  if (name == null) return; // cancelled
+  const trimmed = name.trim() || current;
+
+  try {
+    const lib = getLibrary();
+    const idx = lib.findIndex(s => s.name === trimmed);
+    const entry = { id: Date.now(), name: trimmed, scriptData: JSON.parse(JSON.stringify(scriptData)), savedAt: Date.now() };
+    if (idx >= 0) lib[idx] = entry; else lib.unshift(entry);
+    localStorage.setItem(LS_LIB, JSON.stringify(lib));
+    appFilename.textContent = trimmed;
+    saveBtn.textContent = 'Saved ✓';
+    saveBtn.classList.add('ok');
+    setTimeout(() => { saveBtn.textContent = 'Save'; saveBtn.classList.remove('ok'); }, 2000);
+  } catch(e) {
+    alert('Save failed: ' + e.message);
+  }
+});
+
+const exportBtn = document.getElementById('exportBtn');
+exportBtn.addEventListener('click', () => {
+  if (!scriptData) return;
+  const entry = { name: appFilename.textContent || 'Untitled', scriptData: JSON.parse(JSON.stringify(scriptData)) };
+  const json = JSON.stringify(entry, null, 2);
+  navigator.clipboard.writeText(json).then(() => {
+    exportBtn.textContent = 'Copied ✓';
+    exportBtn.classList.add('ok');
+    setTimeout(() => { exportBtn.textContent = 'Export'; exportBtn.classList.remove('ok'); }, 2500);
+  }).catch(() => {
+    // Fallback if clipboard access is blocked
+    prompt('Copy this JSON and paste it into SHARED_SCRIPTS in index.html:', json);
+  });
+});
+
+function deleteFromLibrary(id) {
+  try { localStorage.setItem(LS_LIB, JSON.stringify(getLibrary().filter(s => s.id !== id))); } catch(_) {}
+}
+
+function formatAgo(ts) {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60)    return 'just now';
+  if (s < 3600)  return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return new Date(ts).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+
+function renderSharedScripts() {
+  const section = document.getElementById('sharedSection');
+  const list    = document.getElementById('sharedList');
+  if (!section || !list) return;
+  if (!SHARED_SCRIPTS.length) { section.style.display = 'none'; return; }
+
+  section.style.display = 'flex';
+  list.innerHTML = '';
+  SHARED_SCRIPTS.forEach(entry => {
+    list.appendChild(mkSavedRow({
+      name:     entry.name,
+      meta:     'shared by Dial\'d In',
+      badge:    'shared',
+      onOpen:   () => { scriptData = ensureDefaults(entry.scriptData); launchApp(entry.name, false); },
+      onDelete: null,
+    }));
+  });
+}
+
+function renderSavedScripts() {
+  const section = document.getElementById('savedSection');
+  const list    = document.getElementById('savedList');
+  if (!section || !list) return;
+
+  const auto = getAutosave();
+  const lib  = getLibrary();
+
+  if (!auto && !lib.length) { section.style.display = 'none'; return; }
+  section.style.display = 'flex';
+  list.innerHTML = '';
+
+  if (auto) {
+    list.appendChild(mkSavedRow({
+      name:    auto.name,
+      meta:    formatAgo(auto.savedAt),
+      badge:   'auto',
+      onOpen:  () => { scriptData = ensureDefaults(auto.scriptData); launchApp(auto.name, false); },
+      onDelete: () => { try { localStorage.removeItem(LS_AUTO); } catch(_) {} renderSavedScripts(); },
+    }));
+  }
+
+  lib.forEach(entry => {
+    list.appendChild(mkSavedRow({
+      name:    entry.name,
+      meta:    formatAgo(entry.savedAt),
+      badge:   null,
+      onOpen:  () => { scriptData = ensureDefaults(entry.scriptData); launchApp(entry.name, false); },
+      onDelete: () => { deleteFromLibrary(entry.id); renderSavedScripts(); },
+    }));
+  });
+}
+
+function mkSavedRow({ name, meta, badge, onOpen, onDelete }) {
+  const row = document.createElement('div');
+  row.className = 'saved-entry';
+  row.addEventListener('click', e => { if (!e.target.closest('.saved-entry-del')) onOpen(); });
+
+  if (badge) {
+    const b = document.createElement('span');
+    b.className = 'saved-entry-badge' + (badge === 'shared' ? ' shared' : '');
+    b.textContent = badge;
+    row.appendChild(b);
+  }
+
+  const info = document.createElement('div');
+  info.className = 'saved-entry-info';
+
+  const nameEl = document.createElement('div');
+  nameEl.className = 'saved-entry-name';
+  nameEl.textContent = name;
+
+  const metaEl = document.createElement('div');
+  metaEl.className = 'saved-entry-meta';
+  metaEl.textContent = meta;
+
+  info.appendChild(nameEl);
+  info.appendChild(metaEl);
+
+  row.appendChild(info);
+
+  if (onDelete) {
+    const del = document.createElement('button');
+    del.className = 'saved-entry-del';
+    del.textContent = '×';
+    del.title = 'Remove';
+    del.addEventListener('click', e => { e.stopPropagation(); onDelete(); });
+    row.appendChild(del);
+  }
+
+  return row;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// UPLOAD
+// ═══════════════════════════════════════════════════════════════════════════════
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('over'); });
+['dragleave','dragend'].forEach(ev => dropZone.addEventListener(ev, () => dropZone.classList.remove('over')));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('over');
+  if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
+
+function setFile(f) {
+  if (!f.name.toLowerCase().endsWith('.docx')) { alert('Please upload a .docx file.'); return; }
+  selectedFile = f;
+  dropFilename.textContent = f.name;
+  uploadBtn.textContent = 'Load Script';
+  uploadBtn.disabled = false;
+}
+
+uploadBtn.addEventListener('click', async () => {
+  if (!selectedFile) { alert('Please select a .docx file first.'); return; }
+  const key = apiKeyInput.value.trim();
+  if (!key) { alert('Please enter your Anthropic API key.'); return; }
+  saveKey(key);
+  showScreen('loading');
+  try {
+    const buf     = await selectedFile.arrayBuffer();
+    const mResult = await mammoth.extractRawText({ arrayBuffer: buf });
+    if (!mResult.value.trim()) throw new Error('The document appears empty or unreadable. Try re-saving it as .docx.');
+    const parsed  = await parseScript(mResult.value, key);
+    scriptData    = ensureDefaults(parsed);
+    launchApp(selectedFile.name, false);
+  } catch (err) {
+    errorDetail.textContent = err.message || String(err);
+    showScreen('error');
+  }
+});
+
+scratchBtn.addEventListener('click', () => {
+  scriptData = blankScript();
+  launchApp('new-script', true);
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ANTHROPIC API
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function parseScript(text, apiKey) {
+  const system = [
+    'You are a cold call script parser. Extract the provided script into a JSON object with these exact keys:',
+    'opener (string), pitch (string), challengeQuestions (array of strings),',
+    'qualification (array of strings — criteria or questions used to qualify the prospect),',
+    'engagementResponse (string), closeForMeeting (string),',
+    'objections (array of objects: { label: short 3-5 word objection, response: string }),',
+    'voicemail (string or null).',
+    'Return only valid JSON, no markdown, no backticks.',
+  ].join(' ');
+
+  let res;
+  try {
+    res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key':                                apiKey,
+        'anthropic-version':                        '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+        'content-type':                             'application/json',
+      },
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 2048, system, messages: [{ role: 'user', content: text }] }),
+    });
+  } catch { throw new Error('Network error — could not reach the Anthropic API.'); }
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    let detail = `HTTP ${res.status}`;
+    try { detail = JSON.parse(body).error?.message || detail; } catch { /* keep */ }
+    if (res.status === 401) throw new Error('Invalid API key. Double-check it and try again.');
+    if (res.status === 429) throw new Error('Rate limit reached. Wait a moment and try again.');
+    throw new Error(`API error: ${detail}`);
+  }
+
+  const data = await res.json();
+  const raw  = data?.content?.[0]?.text || '';
+  if (!raw.trim()) throw new Error('Claude returned an empty response.');
+  try { return JSON.parse(raw); }
+  catch { throw new Error('Claude returned invalid JSON. Try again — if it keeps failing, the script format may be unusual.'); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LAUNCH / RESET
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function launchApp(filename, startInEditMode) {
+  uiStage = scriptData.stageOrder[0] || 'opener';
+  uiViewMode = 'stage'; uiCard = null; uiObj = null;
+  editMode = startInEditMode;
+
+  appFilename.textContent = filename;
+  editToggle.textContent  = editMode ? 'Done' : 'Edit';
+  editToggle.classList.toggle('on', editMode);
+  elApp.classList.toggle('edit-mode', editMode);
+
+  showScreen('app');
+  render();
+}
+
+retryBtn.addEventListener('click', () => { uploadBtn.textContent = 'Load Script'; uploadBtn.disabled = false; showScreen('upload'); });
+
+resetBtn.addEventListener('click', () => {
+  scriptData = null; selectedFile = null;
+  dropFilename.textContent = ''; fileInput.value = '';
+  editMode = false; closeDrawer();
+  vmModal.classList.remove('open');
+  uploadBtn.textContent = 'Load Script'; uploadBtn.disabled = false;
+  showScreen('upload');
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EDIT MODE TOGGLE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+editToggle.addEventListener('click', () => {
+  editMode = !editMode;
+  editToggle.textContent = editMode ? 'Done' : 'Edit';
+  editToggle.classList.toggle('on', editMode);
+  elApp.classList.toggle('edit-mode', editMode);
+  render();
+  updateVmBtn();
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function render() {
+  renderStageBar();
+  renderMain();
+  renderObjPanel();
+  renderVmModal();
+  autoSave(); // persist every change to localStorage
+}
+
+// ── Stage bar ─────────────────────────────────────────────────────────────────
+
+function renderStageBar() {
+  stageBar.innerHTML = '';
+  const order = scriptData.stageOrder;
+  const btns  = [];
+
+  order.forEach((key, i) => {
+    if (!editMode && i > 0) {
+      const sep = document.createElement('span');
+      sep.className = 'stage-sep';
+      sep.textContent = '›';
+      stageBar.appendChild(sep);
+    }
+
+    const btn = document.createElement('button');
+    btn.className = 'stage-btn' + (uiStage === key && uiViewMode === 'stage' ? ' active' : '');
+    btn.textContent = STAGE_META[key]?.label ?? key;
+    btn.addEventListener('click', () => {
+      uiStage = key; uiViewMode = 'stage'; uiCard = null; uiObj = null;
+      render();
+    });
+    stageBar.appendChild(btn);
+    btns.push(btn);
+  });
+
+  if (editMode && btns.length > 1) {
+    attachDrag(btns, scriptData.stageOrder, () => render());
+  }
+}
+
+// ── Main content ──────────────────────────────────────────────────────────────
+
+function renderMain() {
+  const fresh = document.createElement('div');
+  fresh.className = 'content-inner';
+  fresh.id = 'contentInner';
+
+  if (uiViewMode === 'objection') {
+    editMode ? buildObjEdit(fresh) : buildObjView(fresh);
+  } else {
+    editMode ? buildStageEdit(fresh) : buildStageView(fresh);
+  }
+
+  contentScroll.replaceChild(fresh, document.getElementById('contentInner'));
+  contentScroll.scrollTop = 0;
+}
+
+// View mode — all stages render as tappable cards
+
+function buildStageView(container) {
+  const dataKey = DATA_KEY[uiStage];
+  const label   = STAGE_META[uiStage]?.label ?? uiStage;
+  const items   = (scriptData[dataKey] || []).filter(s => s.trim());
+
+  const ew = document.createElement('div');
+  ew.className = 'eyebrow';
+  ew.textContent = label;
+  container.appendChild(ew);
+
+  if (!items.length) {
+    const hint = document.createElement('div');
+    hint.className = 'empty-hint';
+    hint.textContent = 'Nothing added yet — click Edit to add content.';
+    container.appendChild(hint);
+    return;
+  }
+
+  const list = document.createElement('div');
+  list.className = 'card-list';
+  items.forEach((item, i) => {
+    const card = document.createElement('div');
+    card.className = 'script-card' + (uiCard === i ? ' active' : '');
+    card.textContent = item;
+    card.addEventListener('click', () => { uiCard = uiCard === i ? null : i; render(); });
+    list.appendChild(card);
+  });
+  container.appendChild(list);
+}
+
+function buildObjView(container) {
+  const obj = (scriptData.objections || [])[uiObj];
+  if (!obj) return;
+
+  container.appendChild(mkBackBtn(() => { uiViewMode = 'stage'; uiObj = null; uiCard = null; render(); }));
+
+  const ew = document.createElement('div');
+  ew.className = 'eyebrow';
+  ew.textContent = obj.label;
+  container.appendChild(ew);
+
+  const blocks = (Array.isArray(obj.response) ? obj.response : [obj.response]).filter(s => String(s).trim());
+
+  if (!blocks.length) {
+    const hint = document.createElement('div');
+    hint.className = 'empty-hint';
+    hint.textContent = 'Nothing added yet — click Edit to add content.';
+    container.appendChild(hint);
+    return;
+  }
+
+  const list = document.createElement('div');
+  list.className = 'card-list';
+  blocks.forEach((item, i) => {
+    const card = document.createElement('div');
+    card.className = 'script-card' + (uiCard === i ? ' active' : '');
+    card.textContent = item;
+    card.addEventListener('click', () => { uiCard = uiCard === i ? null : i; render(); });
+    list.appendChild(card);
+  });
+  container.appendChild(list);
+}
+
+// Edit mode — all stages render as draggable text blocks
+
+function buildStageEdit(container) {
+  const dataKey = DATA_KEY[uiStage];
+  const label   = STAGE_META[uiStage]?.label ?? uiStage;
+  const arr     = scriptData[dataKey] || [];
+
+  const ew = document.createElement('div');
+  ew.className = 'eyebrow';
+  ew.textContent = label;
+  container.appendChild(ew);
+
+  const list = document.createElement('div');
+  list.className = 'edit-list';
+  const rows = [];
+
+  arr.forEach((item, i) => {
+    const row = mkEditRow(item, i, arr);
+    list.appendChild(row);
+    rows.push(row);
+  });
+
+  if (rows.length > 1) attachDrag(rows, arr, () => render());
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'add-row-btn';
+  addBtn.textContent = '+ Add block';
+  addBtn.addEventListener('click', () => {
+    arr.push('');
+    render();
+    requestAnimationFrame(() => {
+      const tas = contentScroll.querySelectorAll('.edit-item-ta');
+      if (tas.length) tas[tas.length - 1].focus();
+    });
+  });
+
+  container.appendChild(list);
+  container.appendChild(addBtn);
+}
+
+function buildObjEdit(container) {
+  const obj = (scriptData.objections || [])[uiObj];
+  if (!obj) return;
+
+  container.appendChild(mkBackBtn(() => { uiViewMode = 'stage'; uiObj = null; uiCard = null; render(); }));
+
+  // Label
+  const lHint = document.createElement('div');
+  lHint.className = 'obj-edit-hint';
+  lHint.textContent = 'Short label (3-5 words)';
+
+  const lInput = document.createElement('input');
+  lInput.className = 'obj-edit-input';
+  lInput.value = obj.label;
+  lInput.placeholder = 'e.g. Not the right time';
+  lInput.addEventListener('input', function() {
+    scriptData.objections[uiObj].label = this.value;
+    renderObjPanel();
+  });
+
+  container.appendChild(lHint);
+  container.appendChild(lInput);
+
+  // Response blocks — same multi-block pattern as stage content
+  const ew = document.createElement('div');
+  ew.className = 'eyebrow';
+  ew.textContent = 'Response';
+  container.appendChild(ew);
+
+  const arr  = obj.response; // now always an array
+  const list = document.createElement('div');
+  list.className = 'edit-list';
+  const rows = [];
+
+  arr.forEach((item, i) => {
+    const row = mkEditRow(item, i, arr);
+    list.appendChild(row);
+    rows.push(row);
+  });
+
+  if (rows.length > 1) attachDrag(rows, arr, () => render());
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'add-row-btn';
+  addBtn.textContent = '+ Add block';
+  addBtn.addEventListener('click', () => {
+    arr.push('');
+    render();
+    requestAnimationFrame(() => {
+      const tas = contentScroll.querySelectorAll('.edit-item-ta');
+      if (tas.length) tas[tas.length - 1].focus();
+    });
+  });
+
+  container.appendChild(list);
+  container.appendChild(addBtn);
+
+  // Delete objection
+  const delBtn = document.createElement('button');
+  delBtn.className = 'obj-delete-btn';
+  delBtn.textContent = 'Delete this objection';
+  delBtn.addEventListener('click', () => {
+    scriptData.objections.splice(uiObj, 1);
+    uiViewMode = 'stage'; uiObj = null; uiCard = null;
+    render();
+  });
+  container.appendChild(delBtn);
+}
+
+// ── Objection panel ───────────────────────────────────────────────────────────
+
+function renderObjPanel() {
+  rightPanel.querySelectorAll('.obj-btn').forEach(el => el.remove());
+  drawerGrid.innerHTML = '';
+
+  const objs = scriptData?.objections || [];
+  const desktopBtns = [];
+
+  objs.forEach((obj, i) => {
+    const db = mkObjBtn(obj, i, false);
+    addObjBtn.insertAdjacentElement('beforebegin', db);
+    desktopBtns.push(db);
+    drawerGrid.appendChild(mkObjBtn(obj, i, true));
+  });
+
+  // Drag-to-reorder in the desktop panel (edit mode only)
+  if (editMode && desktopBtns.length > 1) {
+    attachDrag(desktopBtns, scriptData.objections, () => {
+      // If we were editing an objection, find its new index by reference
+      if (uiViewMode === 'objection' && uiObj !== null) {
+        const ref = scriptData.objections[uiObj]; // still valid? index may have shifted
+        // re-render will reset correctly via the data
+      }
+      uiObj = null; uiViewMode = 'stage';
+      render();
+    });
+  }
+}
+
+function mkObjBtn(obj, index, fromDrawer) {
+  const btn = document.createElement('button');
+  btn.className = 'obj-btn' + (uiObj === index && uiViewMode === 'objection' ? ' active' : '');
+
+  const handle = document.createElement('span');
+  handle.className = 'drag-handle';
+  handle.textContent = '⠿';
+
+  const lbl = document.createElement('span');
+  lbl.className = 'obj-btn-label';
+  lbl.textContent = obj.label || '(unnamed)';
+
+  const icon = document.createElement('span');
+  icon.className = 'obj-btn-edit-icon';
+  icon.textContent = '✎';
+
+  btn.appendChild(handle);
+  btn.appendChild(lbl);
+  btn.appendChild(icon);
+
+  btn.addEventListener('click', () => {
+    uiViewMode = 'objection'; uiObj = index; uiCard = null;
+    if (fromDrawer) closeDrawer();
+    render();
+  });
+  return btn;
+}
+
+addObjBtn.addEventListener('click', () => {
+  scriptData.objections.push({ label: '', response: [''] });
+  uiViewMode = 'objection';
+  uiObj = scriptData.objections.length - 1;
+  uiCard = null;
+  render();
+});
+
+// ── Voicemail modal ───────────────────────────────────────────────────────────
+
+function renderVmModal() {
+  vmModalContent.innerHTML = '';
+  if (editMode) {
+    const ta = document.createElement('textarea');
+    ta.className = 'vm-edit-ta';
+    ta.value = scriptData.voicemail || '';
+    ta.placeholder = 'Enter voicemail script...';
+    ta.addEventListener('input', function() {
+      scriptData.voicemail = this.value;
+      updateVmBtn();
+      autoResize(this);
+    });
+    vmModalContent.appendChild(ta);
+    requestAnimationFrame(() => autoResize(ta));
+  } else {
+    const bd = document.createElement('div');
+    bd.className = 'modal-body';
+    bd.textContent = scriptData?.voicemail || '';
+    vmModalContent.appendChild(bd);
+  }
+}
+
+vmBtn.addEventListener('click',    () => { renderVmModal(); vmModal.classList.add('open'); });
+vmModalX.addEventListener('click', () => vmModal.classList.remove('open'));
+vmModal.addEventListener('click',  e => { if (e.target === vmModal) vmModal.classList.remove('open'); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') vmModal.classList.remove('open'); });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DRAG AND DROP — generic reorder helper
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// attachDrag(els, arr, onDrop)
+// els: array of HTMLElements (already in DOM, in order)
+// arr: the parallel data array to reorder in-place
+// onDrop: called after the splice
+
+function attachDrag(els, arr, onDrop) {
+  let src = null;
+
+  els.forEach((el, i) => {
+    el.draggable = true;
+
+    el.addEventListener('dragstart', e => {
+      src = i;
+      e.dataTransfer.effectAllowed = 'move';
+      // Slight delay so the drag image renders before opacity kicks in
+      setTimeout(() => el.classList.add('dragging'), 0);
+    });
+
+    el.addEventListener('dragend', () => {
+      src = null;
+      els.forEach(e => { e.classList.remove('dragging'); e.classList.remove('drag-over'); });
+    });
+
+    el.addEventListener('dragover', e => {
+      e.preventDefault();
+      if (src === i) return;
+      els.forEach(e => e.classList.remove('drag-over'));
+      el.classList.add('drag-over');
+    });
+
+    el.addEventListener('dragleave', e => {
+      // Only remove if truly leaving the element (not entering a child)
+      if (!el.contains(e.relatedTarget)) el.classList.remove('drag-over');
+    });
+
+    el.addEventListener('drop', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      el.classList.remove('drag-over');
+      if (src !== null && src !== i) {
+        const [item] = arr.splice(src, 1);
+        arr.splice(i, 0, item);
+        onDrop();
+      }
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function mkEditRow(value, index, arr) {
+  const row = document.createElement('div');
+  row.className = 'edit-item-row';
+
+  const handle = document.createElement('span');
+  handle.className = 'drag-handle';
+  handle.textContent = '⠿';
+
+  const ta = document.createElement('textarea');
+  ta.className = 'edit-item-ta';
+  ta.value = value;
+  ta.placeholder = 'Enter text...';
+  ta.addEventListener('input', function() {
+    arr[index] = this.value;
+    autoResize(this);
+  });
+
+  const del = document.createElement('button');
+  del.className = 'del-btn';
+  del.innerHTML = '×';
+  del.title = 'Delete block';
+  del.addEventListener('click', () => {
+    arr.splice(index, 1);
+    render();
+  });
+
+  row.appendChild(handle);
+  row.appendChild(ta);
+  row.appendChild(del);
+  requestAnimationFrame(() => autoResize(ta));
+  return row;
+}
+
+function mkBackBtn(onClick) {
+  const btn = document.createElement('button');
+  btn.className = 'back-btn';
+  btn.textContent = '← Back';
+  btn.addEventListener('click', onClick);
+  return btn;
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MOBILE DRAWER
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function openDrawer() {
+  drawerOpen = true;
+  objDrawer.classList.add('open');
+  drawerScrim.style.opacity = '1';
+  drawerScrim.style.pointerEvents = 'all';
+  objToggle.textContent = 'Objections ↓';
+}
+
+function closeDrawer() {
+  drawerOpen = false;
+  objDrawer.classList.remove('open');
+  drawerScrim.style.opacity = '0';
+  drawerScrim.style.pointerEvents = 'none';
+  objToggle.textContent = 'Objections ↑';
+}
+
+objToggle.addEventListener('click', () => drawerOpen ? closeDrawer() : openDrawer());
+drawerScrim.addEventListener('click', closeDrawer);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+showScreen('upload');
+</script>
+</body>
+</html>
