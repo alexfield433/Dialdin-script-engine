@@ -424,6 +424,17 @@
 
     .saved-section { display: flex; flex-direction: column; gap: 10px; }
 
+    /* ─── UPDATE BANNER ─────────────────────────────────────────────────────── */
+    .update-banner {
+      margin-top: 6px; padding: 14px 16px;
+      background: rgba(155,89,182,0.08); border: 1px solid rgba(155,89,182,0.25);
+      border-radius: 10px; font-size: 12.5px; color: var(--muted); line-height: 1.65;
+    }
+    .update-banner strong { color: var(--text); font-weight: 600; }
+    .update-banner ol { margin: 8px 0 0 16px; display: flex; flex-direction: column; gap: 4px; }
+    .update-banner li { color: var(--muted); }
+    .update-banner li span { color: var(--accent); font-weight: 600; }
+
     .saved-divider {
       display: flex; align-items: center; gap: 10px;
       font-size: 11px; color: var(--muted); letter-spacing: 0.3px;
@@ -493,6 +504,17 @@
     <div id="sharedSection" class="saved-section" style="display:none">
       <div class="saved-divider">shared scripts</div>
       <div class="saved-list" id="sharedList"></div>
+    </div>
+
+    <!-- Update workflow note -->
+    <div class="update-banner">
+      <strong>Want everyone to see your changes?</strong>
+      <ol>
+        <li>Open the script and make your edits, then hit <span>Save</span></li>
+        <li>Click <span>Export</span> — this copies the script JSON to your clipboard</li>
+        <li>Send the copied JSON to Alex to paste into the site file</li>
+        <li>Once pushed to GitHub, Netlify redeploys and everyone sees the update within ~1 min</li>
+      </ol>
     </div>
 
     <!-- Saved scripts — rendered by renderSavedScripts() -->
