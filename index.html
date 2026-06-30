@@ -1288,14 +1288,25 @@ async function doPublish() {
     if (idx >= 0) existing[idx] = entry; else existing.unshift(entry);
     const newSharedStr = 'const SHARED_SCRIPTS = ' + JSON.stringify(existing, null, 2) + ';';
 
-    // 3. Replace SHARED_SCRIPTS block in file
-    const updatedContent = currentContent.replace(
-      /const SHARED_SCRIPTS = \[[\s\S]*?\];/,
-      newSharedStr
-    );
+    // 3. Replace SHARED_SCRIPTS block in file.
+    // Anchor the end to the `];` that is followed by the next top-level const,
+    // so a script whose text contains "];" can't truncate the match early.
+    const sharedRe = /const SHARED_SCRIPTS = \[[\s\S]*?\];(?=\s*const DEFAULT_ORDER)/;
+
+    if (!sharedRe.test(currentContent)) {
+      throw new Error('Could not find the SHARED_SCRIPTS block in the published file — its format may have changed. Nothing was published.');
+    }
+
+    const updatedContent = currentContent.replace(sharedRe, newSharedStr);
 
     if (updatedContent === currentContent) {
-      throw new Error('Could not locate SHARED_SCRIPTS block in file — no changes made.');
+      // Block found, but the result is identical — there is simply nothing new to publish.
+      status.textContent = '✓ Already up to date — no new changes to publish.';
+      status.className = 'publish-status ok';
+      btn.disabled = false;
+      btn.textContent = 'Done ✓';
+      setTimeout(() => closePublishModal(), 2500);
+      return;
     }
 
     status.textContent = 'Pushing to GitHub…';
