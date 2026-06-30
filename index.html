@@ -836,20 +836,10 @@ const SHARED_SCRIPTS = [
       ],
       "opener": [
         "Hello this is YOUR FULL NAME is this THEIR FIRST NAME? (pause)",
-        "Hi {{ first name }}, as I say it's {{ your name }} from Obenan. Look I'm gonna be very honest with you and you're probably going to hate me for this but it is actually a sales call, so I'm not sure if that makes you want to slam the phone back down or let me have 30 seconds it's completely up to you.",
-        "hi am i speaking with the owner of x company?",
-        "hi first name, its your name appreciate ive called you out the blue have you got a second to chat?"
+        "Hi {{ first name }}, as I say it's {{ your name }} from Obenan. Look I'm gonna be very honest with you and you're probably going to hate me for this but it is actually a sales call, so I'm not sure if that makes you want to slam the phone back down or let me have 30 seconds it's completely up to you."
       ],
       "pitch": [
-        "We speak with a lot of business owners that are dealing with one of two challenges on the review side of things.\n\nfirst you get a lot of reviews on google but replying to all of them can be really time consuming and hard to manage\n\nor second the challenge is more how do i get more positive reviews and prevent or reduce negative reviews\n\nbut ive got a feeling this is the part where you tell me none of that resonates and everything is perfect?",
-        "seen you have x rating online did you know businesses that have over abc rating are 60% more likely to convert traffic/ did you know 80% of users filter for restaurants with at least x rating?",
-        "seen you have under x amount of reviews on your restaurant did you know that companies with less than x amount of reviews are 5 times less likely to get cusotmer bookings? - we help businesses like yours get more reviews which leads to loads more bookings",
-        "speak with a lot of businesses that say they get a lot of positive reviews but then they get a few negative reviews and it massively impacts customer bookings and sales. the challenge is really how do i stop those negative reviews showing online and destroying all the good work ive done building up the positive reviews",
-        "see you have a ton of reviews one thing i hear a lot is being able to respond to reviews is often really hard to do and actually if you dont respond in a timely manner google punishes you by x percent",
-        "if high rated review - see you got a good review rating - one thing that can happen is you get a negative review and it completely messes up your rating we help prevent that and ",
-        "restaurants that are paying for ads - want to be more discoverable online - talk about seo and ai gpt piece",
-        "We speak with a lot of business owners that are dealing with one of two challenges.\n\nfirst you get a lot of reviews on google but replying to all of them can be really time consuming and hard to manage\n\nor second the challenge is more how do i get more positive reviews and prevent or reduce negative reviews\n\nOr maybe the challenge is visibility - when people search on Google or ask ChatGPT for recommendations, competitors are showing up ahead of you and winning business that could have been yours.\n\nbut ive got a feeling this is the part where you tell me none of that resonates and everything is perfect?",
-        "seen you haven't posted very much on google? seen you haven't responded to too many reviews any reason for that?"
+        "So we typically speak with INSERT JOB TITLE that find they are a bit frustrated on the digital marketing side of things.\n\nSo perhaps you get a lot of reviews on google but replying to all of them can be really time consuming and hard to manage\n\nor maybe the biggest challenge is more how do i get more positive reviews and prevent or reduce negative reviews\n\nOr maybe the challenge is visibility - when people search on Google or ask ChatGPT for recommendations, competitors are showing up ahead of you and winning business that could have been yours.\n\nbut ive got a feeling this is the part where you tell me none of that resonates and everything is perfect?"
       ],
       "challengeQuestions": [
         "PEEMEESS\nProblem- which problem is most relevant? \nExample - give me an example of what that looks like in your world?// what does that look like for you guys exactly, could you maybe paint me a picture a bit?\nEffect - is this really a problem though or more a minor issue? \nMotivation - what have you done already to solve this?\nExpectations - do you believe it can be solved?\nEmotion - how does it feel? That sounds pretty frustrating\nSolution - would you ever consider using a solution like ours? \nWould there be any reason you wouldn't consider using an agency?\nSummarise - sounds like abc xyz  just to summarise it back to you to make sure i havent missed anything … is that about right? \nSounds like it could be a fit then, we've helped lots of companies like yours with challenges around {insert their challenge} - I can't say right now that for sure we are going to be the perfect fit but it seems like we could…\nWould there be any reason you wouldn't want to sit down and have a conversation about this?"
@@ -859,15 +849,60 @@ const SHARED_SCRIPTS = [
         "How many revenue generating centres things like spa's, gym's etc do you have at your hotel?"
       ],
       "engagementResponse": [
-        "So we are an AI platform that at it's core does three things. One gets you to rank higher on search engines like google so you get more bookings. Two makes sure your business is recommended by LLM's like chatgpt when people search for queries like \"hey I want to find x service\". And three gets you more positive reviews and reduces the amount of negative reviews you get. Would you be interested in learning a little bit more to see if its a fit over a quick call?",
-        "we worked with a similar business in the same spot as you are (summarise their spot) and through our technology they were able to achieve abc outcomes"
+        "So we are an AI platform that at it's core does three things. One gets you to rank higher on search engines like google so you get more bookings. Two makes sure your business is recommended by LLM's like chatgpt when people search for queries like \"hey I want to find x service\". And three gets you more positive reviews and reduces the amount of negative reviews you get. Would you be interested in learning a little bit more to see if its a fit over a quick call?"
       ],
       "closeForMeeting": [
-        "Sounds like it could be of interest, would there be any reason you wouldn't want to sit down and explore this further?",
-        "would you be opposed to seeing how we could help you achieve abc outcome on a call and how it might work?"
+        "Sounds like it could be of interest, would there be any reason you wouldn't want to sit down and explore this further?"
       ],
       "objections": [],
-      "branches": {},
+      "branches": {
+        "pitch": [
+          {
+            "title": "Generic problem based statement",
+            "desc": "",
+            "tag": "",
+            "content": [
+              "So we typically speak with INSERT JOB TITLE that find they are a bit frustrated on the digital marketing side of things.\n\nSo perhaps you get a lot of reviews on google but replying to all of them can be really time consuming and hard to manage\n\nor maybe the biggest challenge is more how do i get more positive reviews and prevent or reduce negative reviews\n\nOr maybe the challenge is visibility - when people search on Google or ask ChatGPT for recommendations, competitors are showing up ahead of you and winning business that could have been yours.\n\nbut ive got a feeling this is the part where you tell me none of that resonates and everything is perfect?"
+            ]
+          },
+          {
+            "title": "Low review rating",
+            "desc": "Rating under 4.0",
+            "tag": "",
+            "content": [
+              "I saw on your google profile that your review rating is around \"X\". What are you doing right now to make your review rating as high as possible?",
+              "The reason I ask is we help businesses like you boost your review rating. We do this by putting a simple step in front of the review — if its a happy customer and they give a good rating eg five stars then we send them straight to Google. Unhappy one, it gets routed privately to you instead of landing on your google profile so the negative review is avoided. Over time the positive reviews climb and the negatives go to your inbox, not your rating. For somewhere around [X.X], we have helped other clients push that up past [X.X], I'd love to show you how if interested..."
+            ]
+          },
+          {
+            "title": "Few reviews",
+            "desc": "",
+            "tag": "",
+            "content": [
+              "I was looking on your google reviews and see you have some great comments and I imagine this really helps you to get more customers through the door. Curious though, is getting more positive reviews something you are working on?",
+              "The reason I ask — review count is directly tied to how visible you are. The businesses ranking in Google’s top three local spots average around 100 reviews; the ones down in positions seven to ten have much lower review numbers. We make getting reviews almost automatic — QR codes for the table, review requests by email after someone visits — and the same system steers the unhappy ones to a private message instead of your public profile. "
+            ]
+          },
+          {
+            "title": "Lots of Reviews",
+            "desc": "",
+            "tag": "",
+            "content": [
+              "I was looking at your google profile and I can see you’ve got a serious number of reviews — [X hundred / thousand] which is great. How are you keeping on top of actually replying to them all at the moment?",
+              "The reason I ask is most owners don't realise that Google treats replying to reviews as activity and ranks you higher for it. Replying to your reviews gets you about 25% more people viewing your profile but the challenge is replying to all the reviews in a timely manner can be tough. That's where we help, with Obenan you can use AI to automate Google replies so you're always responding to reviews and never miss a beat."
+            ]
+          },
+          {
+            "title": "No google posts",
+            "desc": "",
+            "tag": "",
+            "content": [
+              "I was looking on your google profile and noticed you haven't run done many/ any google posts yet and you’re not alone, most places don’t. But did you know active posting on your Google profile can lift your map views by up to 70 percent? Curious if you have ever considered running google posts in order to get you higher in the google ranks and generate more traffic?",
+              "We automate all your google posting: a fresh, optimised post every single day, you never touch it. Most of our restaurants see their google impressions dpuble or triple within a couple of months of switching us on, worth a chat to see if there's a fit?"
+            ]
+          }
+        ]
+      },
       "voicemail": null
     }
   },
